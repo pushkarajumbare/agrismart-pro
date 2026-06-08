@@ -1,0 +1,11 @@
+node_modules
+build
+functions/lib
+hotel-management-system/functions/lib
+hotel-management-system/.expo-export-check
+hotel-management-system/expo-start-check*.log
+.env
+.DS_Store
+venv/ 
+node_modules/ 
+.env 
