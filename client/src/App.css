@@ -27,6 +27,32 @@ input:focus, select:focus {
   transform: translateY(-1px);
 }
 
+/* Custom Language Selector Styling (AgriSmart Option 3) */
+.nav-lang-select {
+  background: linear-gradient(135deg, #2d6a4f 0%, #40916c 100%);
+  color: #ffffff;
+  border: 1px solid #52b788;
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nav-lang-select:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Crucial fix for cross-browser option text visibility */
+.nav-lang-select option {
+  background-color: #ffffff;
+  color: #1b4332;
+  font-weight: 600;
+  padding: 8px;
+}
+
 .nav {
   align-items: center;
   background: #1b4332;

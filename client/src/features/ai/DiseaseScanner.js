@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Camera } from 'lucide-react';
+import { Camera, AlertCircle, Loader, Trash2, CheckCircle } from 'lucide-react';
 
 const DiseaseScanner = ({ activeUserEmail = 'guest', onScanSaved }) => {
     const [selectedFile, setSelectedFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [loading, setLoading] = useState(false);
     const [scanResult, setScanResult] = useState(null);
+    const [error, setError] = useState(null);
+    const [dragActive, setDragActive] = useState(false);
 
-    // Clean up image preview memory
     useEffect(() => {
         return () => {
             if (previewUrl) {
@@ -17,28 +18,47 @@ const DiseaseScanner = ({ activeUserEmail = 'guest', onScanSaved }) => {
         };
     }, [previewUrl]);
 
-    // Handle file selection
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-
+    const handleFileChange = (file) => {
         if (file) {
+            if (!file.type.startsWith('image/')) {
+                setError('Please upload an image file (jpg, png, webp)');
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                setError('File size must be less than 5MB');
+                return;
+            }
             setSelectedFile(file);
             setPreviewUrl(URL.createObjectURL(file));
             setScanResult(null);
+            setError(null);
         }
     };
 
-    // Upload image to backend
+    const handleDrag = (e) => {
+        e.preventDefault();
+        if (e.type === 'dragenter' || e.type === 'dragover') {
+            setDragActive(true);
+        } else if (e.type === 'dragleave') {
+            setDragActive(false);
+        }
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setDragActive(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) handleFileChange(file);
+    };
+
     const saveScanRecord = (result) => {
         const email = activeUserEmail || 'guest';
         const storageKey = `scans_${email}`;
         const record = {
             id: Date.now(),
-            plant: 'Uploaded Leaf',
-            diagnosis: result.disease || 'Unknown Diagnosis',
+            plant: 'Leaf Scan',
+            diagnosis: result.disease || 'Unknown',
             confidence: result.confidence || '0%',
-            location: email === 'guest' ? 'Guest Repository' : 'Scanner Upload',
-            status: result.offline ? 'AI Offline Fallback' : 'Analyzed',
             date: new Date().toLocaleDateString()
         };
 
@@ -55,318 +75,195 @@ const DiseaseScanner = ({ activeUserEmail = 'guest', onScanSaved }) => {
         if (e) e.preventDefault();
 
         if (!selectedFile) {
-            alert("Please select a leaf image first.");
+            setError("Please select a leaf image first");
             return;
         }
 
         setLoading(true);
         setScanResult(null);
+        setError(null);
 
         const formData = new FormData();
-        formData.append('image', selectedFile);
+        // FIXED: Changed key from 'image' to 'file' to match what FastAPI expects
+        formData.append('file', selectedFile);
 
         try {
-            // Send image to Node.js backend
+            // FIXED: Target port 8000 and matching /api/disease/predict endpoint
             const response = await axios.post(
-                'http://localhost:5000/api/scan',
-                formData
+                'http://localhost:8000/api/disease/predict',
+                formData,
+                { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 }
             );
-
-            setScanResult(response.data);
-            saveScanRecord(response.data);
-
+            const result = response.data?.data || response.data;
+            setScanResult(result);
+            saveScanRecord(result);
         } catch (err) {
-            console.error("Scanning interface error:", err);
-
-            const fallbackResult = {
-                disease: 'AI Offline Fallback',
-                confidence: '0%',
-                symptoms: 'The scanner could not reach the AI service, but your dashboard workflow can continue.',
-                cause: 'Node or Python AI service may be offline.',
-                treatment: 'Keep the image selected and retry after the service reconnects.',
-                prevention: 'Saved expenses and profile history remain available while AI reconnects.'
-            };
-            setScanResult(fallbackResult);
-            saveScanRecord(fallbackResult);
+            const errorMsg = err.response?.data?.message || err.message || 'Failed to analyze image. Please try again.';
+            setError(errorMsg);
         } finally {
-            setLoading(false);
+            loading && setLoading(false);
         }
     };
 
+    const handleClear = () => {
+        setSelectedFile(null);
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+        setScanResult(null);
+        setError(null);
+    };
+
     return (
-        <div
-            style={{
-                padding: '20px',
-                background: '#fff',
-                borderRadius: '15px',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
-            }}
-        >
-            <h2
-                style={{
-                    color: '#1b4332',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px'
-                }}
-            >
-                <Camera />
-                AI Disease Scanner
-            </h2>
+        <div className="bg-white rounded-lg shadow-lg p-6 max-w-3xl mx-auto">
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-red-100 rounded-lg">
+                    <Camera size={24} className="text-red-700" />
+                </div>
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-800">Disease Detection</h2>
+                    <p className="text-sm text-gray-600">Upload a clear leaf image for AI analysis</p>
+                </div>
+            </div>
 
-            <p
-                style={{
-                    fontSize: '14px',
-                    color: '#666',
-                    marginTop: 0
-                }}
-            >
-                Upload a crop leaf image and let AgriSmart
-                analyze disease symptoms.
-            </p>
+            {/* Error Message */}
+            {error && (
+                <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded flex gap-3 mb-6">
+                    <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
+                    <p className="text-sm text-red-700">{error}</p>
+                </div>
+            )}
 
-            {/* File Upload */}
-            <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                style={{
-                    margin: '15px 0',
-                    display: 'block'
-                }}
-            />
+            {/* Upload Area */}
+            <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-all mb-6 ${
+                    dragActive ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-gray-50 hover:border-red-400'
+                }`}
+            >
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileChange(e.target.files[0])}
+                    className="hidden"
+                    id="file-input"
+                    disabled={loading}
+                />
+                <label htmlFor="file-input" className="cursor-pointer block">
+                    <Camera size={48} className="mx-auto mb-3 text-gray-400" />
+                    <p className="text-sm font-semibold text-gray-700 mb-1">Drag and drop your leaf image here</p>
+                    <p className="text-xs text-gray-500">or click to select (JPG, PNG, WebP • Max 5MB)</p>
+                </label>
+            </div>
 
             {/* Image Preview */}
             {previewUrl && (
-                <div style={{ marginBottom: '15px' }}>
+                <div className="mb-6 rounded-lg overflow-hidden border border-gray-200">
                     <img
                         src={previewUrl}
                         alt="Leaf Preview"
-                        style={{
-                            width: '100%',
-                            maxHeight: '220px',
-                            objectFit: 'cover',
-                            borderRadius: '10px'
-                        }}
+                        className="w-full h-64 object-cover"
                     />
                 </div>
             )}
 
-            {/* Scan Button */}
-            <button
-                type="button"
-                onClick={handleUpload}
-                disabled={loading}
-                style={{
-                    width: '100%',
-                    padding: '12px',
-                    backgroundColor: loading
-                        ? '#ccc'
-                        : '#2d6a4f',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: loading
-                        ? 'not-allowed'
-                        : 'pointer',
-                    fontWeight: 'bold'
-                }}
-            >
-                {loading
-                    ? "Analyzing Leaf..."
-                    : "🚀 Scan Leaf"}
-            </button>
-
-            {/* Scan Results */}
-            {scanResult && (
-                <div
-                    style={{
-                        marginTop: '20px',
-                        borderTop: '2px dashed #eee',
-                        paddingTop: '15px'
-                    }}
+            {/* Action Buttons */}
+            <div className="flex gap-3 mb-6">
+                <button
+                    onClick={handleUpload}
+                    disabled={loading || !selectedFile}
+                    className="flex-1 px-6 py-3 bg-red-700 text-white font-semibold rounded-lg hover:bg-red-800 disabled:bg-gray-400 transition-colors flex items-center justify-center gap-2"
                 >
-                    {/* Diagnosis Header */}
-                    <div
-                        style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            background: '#f8f9fa',
-                            padding: '12px',
-                            borderRadius: '8px',
-                            marginBottom: '15px'
-                        }}
+                    {loading ? (
+                        <>
+                            <Loader size={20} className="animate-spin" />
+                            Analyzing...
+                        </>
+                    ) : (
+                        <>
+                            <Camera size={20} />
+                            Scan Leaf
+                        </>
+                    )}
+                </button>
+                {selectedFile && (
+                    <button
+                        onClick={handleClear}
+                        className="px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2"
                     >
-                        <div>
-                            <span
-                                style={{
-                                    fontSize: '11px',
-                                    color: '#888',
-                                    textTransform:
-                                        'uppercase'
-                                }}
-                            >
-                                Diagnosis
-                            </span>
+                        <Trash2 size={20} />
+                        Clear
+                    </button>
+                )}
+            </div>
 
-                            <h3
-                                style={{
-                                    margin: 0,
-                                    color:
-                                        scanResult.disease ===
-                                        'Healthy'
-                                            ? '#2d6a4f'
-                                            : '#dc3545'
-                                }}
-                            >
-                                {scanResult.disease}
-                            </h3>
+            {/* Results */}
+            {scanResult && (
+                <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-lg p-6 border border-red-200">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        {scanResult.disease === 'Healthy Leaf' || scanResult.disease === 'Healthy' ? (
+                            <>
+                                <CheckCircle size={20} className="text-green-600" />
+                                Healthy Leaf
+                            </>
+                        ) : (
+                            <>
+                                <AlertCircle size={20} className="text-red-600" />
+                                Disease Detected
+                            </>
+                        )}
+                    </h3>
+
+                    {/* Disease & Confidence */}
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
+                        <div className="p-4 bg-white rounded border-l-4 border-red-500">
+                            <p className="text-xs font-semibold text-gray-600 uppercase">Disease</p>
+                            <p className="text-2xl font-bold text-red-700 mt-1">{scanResult.disease}</p>
                         </div>
-
-                        <div
-                            style={{
-                                textAlign: 'right'
-                            }}
-                        >
-                            <span
-                                style={{
-                                    fontSize: '11px',
-                                    color: '#888'
-                                }}
-                            >
-                                Confidence
-                            </span>
-
-                            <div
-                                style={{
-                                    fontWeight:
-                                        'bold',
-                                    fontSize:
-                                        '18px',
-                                    color:
-                                        '#2d6a4f'
-                                }}
-                            >
-                                {
-                                    scanResult.confidence
-                                }
-                            </div>
+                        <div className="p-4 bg-white rounded border-l-4 border-blue-500">
+                            <p className="text-xs font-semibold text-gray-600 uppercase">Confidence</p>
+                            <p className="text-2xl font-bold text-blue-700 mt-1">{scanResult.confidence || 'N/A'}</p>
                         </div>
                     </div>
 
                     {/* Symptoms */}
-                    <div
-                        style={{
-                            padding: '10px',
-                            background:
-                                '#fff5f5',
-                            borderLeft:
-                                '4px solid #dc3545',
-                            borderRadius:
-                                '6px',
-                            marginBottom:
-                                '10px'
-                        }}
-                    >
-                        <strong>
-                            🔍 Symptoms:
-                        </strong>
-                        <p
-                            style={{
-                                margin:
-                                    '5px 0 0'
-                            }}
-                        >
-                            {
-                                scanResult.symptoms
-                            }
-                        </p>
-                    </div>
+                    {scanResult.symptoms && (
+                        <div className="p-4 bg-white rounded border-l-4 border-yellow-500 mb-4">
+                            <p className="font-semibold text-gray-800 mb-2">🔍 Symptoms</p>
+                            <p className="text-sm text-gray-700">{scanResult.symptoms}</p>
+                        </div>
+                    )}
 
-                    {/* Cause */}
-                    <div
-                        style={{
-                            padding: '10px',
-                            background:
-                                '#fff9db',
-                            borderLeft:
-                                '4px solid #f59f00',
-                            borderRadius:
-                                '6px',
-                            marginBottom:
-                                '10px'
-                        }}
-                    >
-                        <strong>
-                            ⚠️ Cause:
-                        </strong>
-                        <p
-                            style={{
-                                margin:
-                                    '5px 0 0'
-                            }}
-                        >
-                            {scanResult.cause}
-                        </p>
-                    </div>
+                    {/* Causes */}
+                    {scanResult.cause && (
+                        <div className="p-4 bg-white rounded border-l-4 border-orange-500 mb-4">
+                            <p className="font-semibold text-gray-800 mb-2">⚠️ Causes</p>
+                            <p className="text-sm text-gray-700">{scanResult.cause}</p>
+                        </div>
+                    )}
 
                     {/* Treatment */}
-                    <div
-                        style={{
-                            padding: '10px',
-                            background:
-                                '#ebfbee',
-                            borderLeft:
-                                '4px solid #40c057',
-                            borderRadius:
-                                '6px',
-                            marginBottom:
-                                '10px'
-                        }}
-                    >
-                        <strong>
-                            🧪 Treatment
-                            Plan:
-                        </strong>
-                        <p
-                            style={{
-                                margin:
-                                    '5px 0 0'
-                            }}
-                        >
-                            {
-                                scanResult.treatment
-                            }
-                        </p>
-                    </div>
+                    {scanResult.treatment && (
+                        <div className="p-4 bg-white rounded border-l-4 border-green-500 mb-4">
+                            <p className="font-semibold text-gray-800 mb-2">🧪 Treatment</p>
+                            <p className="text-sm text-gray-700">
+                                {typeof scanResult.treatment === 'object' 
+                                    ? scanResult.treatment.organic || JSON.stringify(scanResult.treatment)
+                                    : scanResult.treatment}
+                            </p>
+                        </div>
+                    )}
 
                     {/* Prevention */}
-                    <div
-                        style={{
-                            padding: '10px',
-                            background:
-                                '#f3f0ff',
-                            borderLeft:
-                                '4px solid #7950f2',
-                            borderRadius:
-                                '6px'
-                        }}
-                    >
-                        <strong>
-                            🛡️ Prevention
-                            Tips:
-                        </strong>
-                        <p
-                            style={{
-                                margin:
-                                    '5px 0 0'
-                            }}
-                        >
-                            {
-                                scanResult.prevention
-                            }
-                        </p>
-                    </div>
+                    {scanResult.prevention && (
+                        <div className="p-4 bg-white rounded border-l-4 border-blue-500">
+                            <p className="font-semibold text-gray-800 mb-2">🛡️ Prevention Tips</p>
+                            <p className="text-sm text-gray-700">{scanResult.prevention}</p>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
