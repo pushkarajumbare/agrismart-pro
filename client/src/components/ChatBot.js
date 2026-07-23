@@ -1,91 +1,297 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send, Bot } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import { Bot, Send, X, MessageSquare, Loader2, User } from 'lucide-react';
 
-const ChatBot = () => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [input, setInput] = useState('');
-    const [messages, setMessages] = useState([
-        { role: 'bot', text: 'Hello. I am AgriSmart Assistant. Send a leaf scan, soil profile, weather condition, or expense concern and I will return a field action plan.' }
-    ]);
-    const chatEndRef = useRef(null);
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-    // Auto-scroll to bottom of chat
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages]);
+export default function ChatBot() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState([
+    {
+      sender: 'ai',
+      text: 'Hello! I am AgriSmart AI, your expert digital agronomist. How can I help you with your crops, soil, or farming today?'
+    }
+  ]);
 
-    const sendMessage = async () => {
-        if (!input.trim()) return;
-        
-        const userMsg = { role: 'user', text: input };
-        setMessages(prev => [...prev, userMsg]);
-        setInput('');
+  const chatEndRef = useRef(null);
 
-        try {
-            const res = await axios.post('http://localhost:5000/api/chat', { message: input });
-            setMessages(prev => [...prev, { role: 'bot', text: res.data.reply }]);
-        } catch (err) {
-            setMessages(prev => [...prev, { role: 'bot', text: `## 🌾 Field Crop Diagnostic Matrix
-- **Current Assessment:** The AI service is reconnecting, so use a conservative field protocol until live analysis returns.
-- **Risk Evaluation:** Medium operational risk from incomplete telemetry. Avoid full-plot treatment until symptoms or soil values are confirmed.
+  // Auto-scroll to the latest message
+  useEffect(() => {
+    if (isOpen) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isOpen]);
 
-## 💡 Tactical Action Plan (Step-by-Step)
-1. **Immediate Remedy:** Inspect 10 plants across the plot and isolate infected foliage from healthy canopy zones.
-2. **Resource Treatment:** If fungal spots are visible, prune infected lower leaves and apply copper-based fungicide at 2 g/L of water to affected blocks only.
-3. **Preventative Controls:** Keep foliage dry, use drip irrigation, improve airflow, and retry AI analysis once services reconnect.
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!input.trim() || loading) return;
 
-## 📊 Financial & Resource Impact
-- Use manual sanitation and spot treatment first to protect the Expense Ledger from unnecessary ₹ spending.` }]);
+    const userQuery = input.trim();
+    setInput('');
+
+    // Add user message to state
+    const updatedMessages = [
+      ...messages,
+      { sender: 'user', text: userQuery }
+    ];
+    setMessages(updatedMessages);
+    setLoading(true);
+
+    try {
+      // Format chat history for backend (excluding full context for light payload)
+      const formattedHistory = updatedMessages.slice(1, -1).map(msg => ({
+        sender: msg.sender,
+        text: msg.text
+      }));
+
+      const response = await axios.post(`${API_BASE_URL}/api/ai/chat`, {
+        question: userQuery,
+        chatHistory: formattedHistory,
+        context: {
+          city: 'Local Farm',
+          crop: 'General'
         }
-    };
+      });
 
-    return (
-        <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
-            {!isOpen ? (
-                <button onClick={() => setIsOpen(true)} style={{ background: '#2d6a4f', color: 'white', borderRadius: '50%', width: '60px', height: '60px', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <MessageCircle size={30} />
-                </button>
-            ) : (
-                <div style={{ width: '350px', height: '450px', background: 'white', border: '1px solid #ddd', borderRadius: '15px', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', overflow: 'hidden' }}>
-                    {/* Header */}
-                    <div style={{ background: '#2d6a4f', color: 'white', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Bot size={20} />
-                            <strong>AgriSmart Assistant</strong>
-                        </div>
-                        <X size={20} onClick={() => setIsOpen(false)} style={{ cursor: 'pointer' }} />
-                    </div>
+      if (response.data && response.data.reply) {
+        setMessages(prev => [
+          ...prev,
+          { sender: 'ai', text: response.data.reply }
+        ]);
+      } else {
+        throw new Error('Invalid response structure');
+      }
+    } catch (error) {
+      console.error('Chatbot API Error:', error);
+      setMessages(prev => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: 'Sorry, I had trouble processing that request. Please make sure your backend is running and try again.'
+        }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                    {/* Messages Area */}
-                    <div style={{ flex: 1, padding: '15px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', background: '#f9f9f9' }}>
-                        {messages.map((m, i) => (
-                            <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-                                <div style={{ background: m.role === 'user' ? '#2d6a4f' : '#fff', color: m.role === 'user' ? '#fff' : '#333', padding: '10px 14px', borderRadius: '12px', fontSize: '14px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', border: m.role === 'bot' ? '1px solid #eee' : 'none', whiteSpace: 'pre-line', lineHeight: 1.45 }}>
-                                    {m.text}
-                                </div>
-                            </div>
-                        ))}
-                        <div ref={chatEndRef} />
-                    </div>
+  return (
+    <div className="chatbot-wrapper" style={styles.wrapper}>
+      {/* Floating Toggle Button */}
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          style={styles.toggleBtn}
+          title="Ask AgriSmart AI"
+        >
+          <Bot size={24} color="#fff" />
+          <span style={styles.toggleText}>AI Assistant</span>
+        </button>
+      )}
 
-                    {/* Input Area */}
-                    <div style={{ padding: '15px', display: 'flex', gap: '8px', borderTop: '1px solid #eee' }}>
-                        <input 
-                            value={input} 
-                            onChange={(e) => setInput(e.target.value)} 
-                            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                            placeholder="Ask about farming..." 
-                            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ddd', outline: 'none' }} 
-                        />
-                        <button onClick={sendMessage} style={{ background: '#2d6a4f', color: 'white', border: 'none', borderRadius: '8px', padding: '10px', cursor: 'pointer' }}>
-                            <Send size={18}/>
-                        </button>
-                    </div>
+      {/* Chat Window Container */}
+      {isOpen && (
+        <div style={styles.chatWindow}>
+          {/* Header */}
+          <div style={styles.header}>
+            <div style={styles.headerTitle}>
+              <Bot size={20} color="#fff" />
+              <strong style={{ color: '#fff', marginLeft: '8px' }}>AgriSmart AI Assistant</strong>
+            </div>
+            <button onClick={() => setIsOpen(false)} style={styles.closeBtn}>
+              <X size={18} color="#fff" />
+            </button>
+          </div>
+
+          {/* Messages Body */}
+          <div style={styles.messagesContainer}>
+            {messages.map((msg, index) => (
+              <div
+                key={index}
+                style={{
+                  ...styles.messageRow,
+                  justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start'
+                }}
+              >
+                {msg.sender === 'ai' && (
+                  <div style={{ ...styles.avatar, backgroundColor: '#2e7d32' }}>
+                    <Bot size={14} color="#fff" />
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    ...styles.messageBubble,
+                    ...(msg.sender === 'user' ? styles.userBubble : styles.aiBubble)
+                  }}
+                >
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+                    {msg.text}
+                  </p>
                 </div>
-            )}
-        </div>
-    );
-};
 
-export default ChatBot;
+                {msg.sender === 'user' && (
+                  <div style={{ ...styles.avatar, backgroundColor: '#1565c0' }}>
+                    <User size={14} color="#fff" />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {loading && (
+              <div style={{ ...styles.messageRow, justifyContent: 'flex-start' }}>
+                <div style={{ ...styles.avatar, backgroundColor: '#2e7d32' }}>
+                  <Bot size={14} color="#fff" />
+                </div>
+                <div style={{ ...styles.messageBubble, ...styles.aiBubble }}>
+                  <Loader2 size={16} className="spin" style={{ marginRight: '6px' }} />
+                  <span>Analyzing farm query...</span>
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Input Form */}
+          <form onSubmit={handleSendMessage} style={styles.inputForm}>
+            <input
+              type="text"
+              placeholder="Ask about crops, diseases, soil..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={loading}
+              style={styles.inputField}
+            />
+            <button type="submit" disabled={loading || !input.trim()} style={styles.sendBtn}>
+              <Send size={16} color="#fff" />
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Inline Styles for clean layout without styling dependencies
+const styles = {
+  wrapper: {
+    position: 'fixed',
+    bottom: '24px',
+    right: '24px',
+    zIndex: 9999
+  },
+  toggleBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    backgroundColor: '#2e7d32',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '30px',
+    padding: '12px 20px',
+    cursor: 'pointer',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+    fontWeight: 'bold',
+    fontSize: '14px'
+  },
+  toggleText: {
+    fontSize: '14px'
+  },
+  chatWindow: {
+    width: '350px',
+    height: '480px',
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    border: '1px solid #e0e0e0'
+  },
+  header: {
+    backgroundColor: '#2e7d32',
+    padding: '12px 16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  headerTitle: {
+    display: 'flex',
+    alignItems: 'center'
+  },
+  closeBtn: {
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  messagesContainer: {
+    flex: 1,
+    padding: '12px',
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    backgroundColor: '#f9f9f9'
+  },
+  messageRow: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    gap: '8px'
+  },
+  avatar: {
+    width: '24px',
+    height: '24px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0
+  },
+  messageBubble: {
+    maxWidth: '75%',
+    padding: '10px 14px',
+    borderRadius: '12px',
+    fontSize: '13px'
+  },
+  aiBubble: {
+    backgroundColor: '#e8f5e9',
+    color: '#1b5e20',
+    borderTopLeftRadius: '2px'
+  },
+  userBubble: {
+    backgroundColor: '#2e7d32',
+    color: '#ffffff',
+    borderTopRightRadius: '2px'
+  },
+  inputForm: {
+    display: 'flex',
+    padding: '8px 12px',
+    backgroundColor: '#ffffff',
+    borderTop: '1px solid #eeeeee',
+    gap: '8px'
+  },
+  inputField: {
+    flex: 1,
+    border: '1px solid #cccccc',
+    borderRadius: '20px',
+    padding: '8px 14px',
+    fontSize: '13px',
+    outline: 'none'
+  },
+  sendBtn: {
+    backgroundColor: '#2e7d32',
+    border: 'none',
+    borderRadius: '50%',
+    width: '34px',
+    height: '34px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer'
+  }
+};

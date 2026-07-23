@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, Component } from 'react';
 import './App.css';
 import WeatherCard from './features/weather/WeatherCard';
 import DiseaseScanner from './features/ai/DiseaseScanner';
@@ -24,9 +24,49 @@ import {
   Eye,
   EyeOff,
   MapPin,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
 
+/* ==========================================================================
+   1. ERROR BOUNDARY
+   ========================================================================== */
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("AgriSmart Error Boundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '2rem', textAlign: 'center', color: '#e53e3e' }}>
+          <h2>Something went wrong in this module.</h2>
+          <p>{this.state.error?.toString()}</p>
+          <button 
+            style={{ padding: '0.5rem 1rem', marginTop: '1rem', cursor: 'pointer' }}
+            onClick={() => this.setState({ hasError: false, error: null })}
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/* ==========================================================================
+   2. INTERNATIONALIZATION (I18N)
+   ========================================================================== */
 const I18N = {
   en: { 
     home: 'Home', 
@@ -176,11 +216,15 @@ const tabs = [
   ['history', History]
 ];
 
+/* LocalStorage Helpers */
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 const keyFor = (type, email = 'guest') => `${type}_${email || 'guest'}`;
 
-function App() {
+/* ==========================================================================
+   3. MAIN APPLICATION COMPONENT
+   ========================================================================== */
+export default function App() {
   const [lang, setLang] = useState(localStorage.getItem('agrismart_lang') || 'en');
   const [view, setView] = useState('landing');
   const [tab, setTab] = useState('overview');
@@ -189,6 +233,7 @@ function App() {
   const [expenses, setExpenses] = useState([]);
   const [scans, setScans] = useState([]);
   const [authError, setAuthError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   
   const t = I18N[lang] || I18N.en;
 
@@ -210,21 +255,48 @@ function App() {
   const setLanguage = (next) => { setLang(next); localStorage.setItem('agrismart_lang', next); };
 
   const submitAuth = (mode, data) => {
-    const users = read('agrismart_users_db', {});
-    const email = data.email.trim().toLowerCase();
-    if (mode === 'signup') {
-      if (users[email]) return setAuthError('This email identifier is already registered.');
-      users[email] = { name: data.name, password: data.password, role: 'Lead Field Director' };
-      write('agrismart_users_db', users);
-    }
-    if (!users[email] || users[email].password !== data.password) return setAuthError('Invalid email identity or password.');
-    setAuthError('');
-    activateSession({ name: users[email].name, email });
+    setIsLoading(true);
+    setTimeout(() => {
+      const users = read('agrismart_users_db', {});
+      const email = data.email.trim().toLowerCase();
+      if (mode === 'signup') {
+        if (users[email]) {
+          setIsLoading(false);
+          return setAuthError('This email identifier is already registered.');
+        }
+        users[email] = { name: data.name, password: data.password, role: 'Lead Field Director' };
+        write('agrismart_users_db', users);
+      }
+      if (!users[email] || users[email].password !== data.password) {
+        setIsLoading(false);
+        return setAuthError('Invalid email identity or password.');
+      }
+      setAuthError('');
+      activateSession({ name: users[email].name, email });
+      setIsLoading(false);
+    }, 400);
   };
 
-  const logout = () => { localStorage.removeItem('agrismart_user'); setProfile(null); setExpenses([]); setScans([]); setView('landing'); };
+  const logout = () => { 
+    localStorage.removeItem('agrismart_user'); 
+    setProfile(null); 
+    setExpenses([]); 
+    setScans([]); 
+    setView('landing'); 
+  };
   
-  const addScan = (scan) => saveScans([{ id: Date.now(), plant: scan.plant || 'Uploaded Leaf', diagnosis: scan.disease || scan.diagnosis, confidence: scan.confidence || '0%', location: scan.location || 'Scanner Upload', status: scan.status || 'Recorded', date: new Date().toLocaleDateString() }, ...scans]);
+  const addScan = (scan) => saveScans([
+    { 
+      id: Date.now(), 
+      plant: scan.plant || 'Uploaded Leaf', 
+      diagnosis: scan.disease || scan.diagnosis, 
+      confidence: scan.confidence || '0%', 
+      location: scan.location || 'Scanner Upload', 
+      status: scan.status || 'Recorded', 
+      date: new Date().toLocaleDateString() 
+    }, 
+    ...scans
+  ]);
 
   const metrics = useMemo(() => ({
     total: expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0),
@@ -235,72 +307,112 @@ function App() {
   const goDash = () => { setView(profile ? 'dashboard' : 'login'); setTab('overview'); };
 
   return (
-    <div className="ag-app">
-      <Navigation t={t} lang={lang} setLang={setLanguage} profile={profile} setView={setView} goDash={goDash} logout={logout} menu={menu} setMenu={setMenu} />
-      {menu && (
-        <div className="mobile-menu">
-          <button onClick={() => { setView('landing'); setMenu(false); }}>{t.home}</button>
-          <button onClick={() => { goDash(); setMenu(false); }}>{t.dashboard}</button>
-          <select className="nav-lang-select" value={lang} onChange={(e) => setLanguage(e.target.value)}>
-            <option value="en">🇺🇸 English</option>
-            <option value="hi">🇮🇳 हिंदी</option>
-            <option value="mr">🇮🇳 मराठी</option>
-          </select>
-        </div>
-      )}
-      {view === 'landing' && (
-        <section className="hero fade">
-          <Leaf size={44}/>
-          <h1>{t.title}</h1>
-          <p>{t.subtitle}</p>
-          <button onClick={goDash}>{t.launch}</button>
-        </section>
-      )}
-      {(view === 'login' || view === 'signup') && <AuthForm mode={view} t={t} error={authError} switchMode={setView} onSubmit={submitAuth} />}
-      {view === 'dashboard' && (
-        <section className="dash fade">
-          <div className="status">
-            <div>
-              <h2>{t.active}: {profile?.name}</h2>
-              <p>{profile?.email}</p>
+    <ErrorBoundary>
+      <div className="ag-app">
+        {/* Global Loading Overlay */}
+        {isLoading && (
+          <div className="global-loader-overlay" style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff'
+          }}>
+            <Loader2 className="animate-spin" size={40} />
+          </div>
+        )}
+
+        {/* Top Navigation */}
+        <Navigation t={t} lang={lang} setLang={setLanguage} profile={profile} setView={setView} goDash={goDash} logout={logout} menu={menu} setMenu={setMenu} />
+        
+        {menu && (
+          <div className="mobile-menu">
+            <button onClick={() => { setView('landing'); setMenu(false); }}>{t.home}</button>
+            <button onClick={() => { goDash(); setMenu(false); }}>{t.dashboard}</button>
+            <select className="nav-lang-select" value={lang} onChange={(e) => setLanguage(e.target.value)}>
+              <option value="en">🇺🇸 English</option>
+              <option value="hi">🇮🇳 हिंदी</option>
+              <option value="mr">🇮🇳 मराठी</option>
+            </select>
+          </div>
+        )}
+
+        {/* Landing Page View */}
+        {view === 'landing' && (
+          <section className="hero fade">
+            <Leaf size={44}/>
+            <h1>{t.title}</h1>
+            <p>{t.subtitle}</p>
+            <button onClick={goDash}>{t.launch}</button>
+          </section>
+        )}
+
+        {/* Authentication Form View */}
+        {(view === 'login' || view === 'signup') && (
+          <AuthForm mode={view} t={t} error={authError} switchMode={setView} onSubmit={submitAuth} />
+        )}
+
+        {/* Main Dashboard View */}
+        {view === 'dashboard' && (
+          <section className="dash fade">
+            <div className="status">
+              <div>
+                <h2>{t.active}: {profile?.name}</h2>
+                <p>{profile?.email}</p>
+              </div>
+              <span>{t.isolated}</span>
             </div>
-            <span>{t.isolated}</span>
-          </div>
-          <div className="workspace">
-            <aside className="sidebar">
-              <small>{t.workspace}</small>
-              {tabs.map(([id, Icon]) => (
-                <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
-                  <Icon size={18}/>{t[id]}
-                </button>
-              ))}
-            </aside>
-            <main className="panel">
-              {tab === 'overview' && <Overview t={t} expenses={expenses} scans={scans} metrics={metrics} />}
-              {tab === 'weather' && <WeatherCard/>}
-              {tab === 'scanner' && <DiseaseScanner activeUserEmail={profile?.email} onScanSaved={addScan}/>}
-              {tab === 'crop' && <CropAdvisor/>}
-              {tab === 'cost' && <CostEstimation/>}
-              {tab === 'soil' && <SoilAnalysis/>}
-              {tab === 'expense' && <ExpenseManager expenses={expenses} onExpensesChange={saveExpenses}/>}
-              {tab === 'history' && (
-                <HistoryLog 
-                  t={t} 
-                  expenses={expenses} 
-                  scans={scans} 
-                  onDeleteExpense={(id) => saveExpenses(expenses.filter(e => e.id !== id))} 
-                  onDeleteScan={(id) => saveScans(scans.filter(s => s.id !== id))}
-                />
-              )}
-            </main>
-          </div>
-        </section>
-      )}
-      <ChatBot />
-    </div>
+
+            <div className="workspace">
+              <aside className="sidebar">
+                <small>{t.workspace}</small>
+                {tabs.map(([id, Icon]) => (
+                  <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+                    <Icon size={18}/>{t[id]}
+                  </button>
+                ))}
+              </aside>
+
+              <main className="panel">
+                <ErrorBoundary>
+                  {tab === 'overview' && <Overview t={t} expenses={expenses} scans={scans} metrics={metrics} />}
+                  {tab === 'weather' && <WeatherCard/>}
+                  {tab === 'scanner' && <DiseaseScanner activeUserEmail={profile?.email} onScanSaved={addScan}/>}
+                  {tab === 'crop' && <CropAdvisor/>}
+                  {tab === 'cost' && <CostEstimation/>}
+                  {tab === 'soil' && <SoilAnalysis/>}
+                  {tab === 'expense' && <ExpenseManager expenses={expenses} onExpensesChange={saveExpenses}/>}
+                  {tab === 'history' && (
+                    <HistoryLog 
+                      t={t} 
+                      expenses={expenses} 
+                      scans={scans} 
+                      onDeleteExpense={(id) => saveExpenses(expenses.filter(e => e.id !== id))} 
+                      onDeleteScan={(id) => saveScans(scans.filter(s => s.id !== id))}
+                    />
+                  )}
+                </ErrorBoundary>
+              </main>
+            </div>
+          </section>
+        )}
+
+        {/* Floating AI Chatbot rendered at root so it stays open across all views/tabs */}
+        <ChatBot />
+      </div>
+    </ErrorBoundary>
   );
 }
 
+/* ==========================================================================
+   4. SUB-COMPONENTS
+   ========================================================================== */
 function Navigation({ t, lang, setLang, profile, setView, goDash, logout, menu, setMenu }) {
   return (
     <nav className="nav">
@@ -439,5 +551,3 @@ function HistoryLog({ t, expenses, scans, onDeleteExpense, onDeleteScan }) {
     </div>
   );
 }
-
-export default App;
