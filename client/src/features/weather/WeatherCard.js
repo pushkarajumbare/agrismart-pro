@@ -24,7 +24,8 @@ const WeatherCard = () => {
   const [locationLoading, setLocationLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  // Base API configuration using environment variables with live Render fallback
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://agrismart-pro-3.onrender.com';
 
   // Auto-detect current location on initial mount
   useEffect(() => {

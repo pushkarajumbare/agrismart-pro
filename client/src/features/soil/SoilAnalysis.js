@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Sprout, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 
+// Base API configuration using environment variables with live Render fallback
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://agrismart-pro-3.onrender.com';
+
 const SoilAnalysisForm = () => {
   const [formData, setFormData] = useState({
     nitrogen: '',
@@ -50,8 +53,6 @@ const SoilAnalysisForm = () => {
     setLoading(true);
 
     try {
-      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      
       const payload = {
         nitrogen: parseNumber(formData.nitrogen),
         phosphorus: parseNumber(formData.phosphorus),
@@ -63,7 +64,7 @@ const SoilAnalysisForm = () => {
         moisture: parseNumber(formData.moisture, 50)
       };
 
-      const response = await axios.post(`${baseUrl}/api/soil/analyze`, payload);
+      const response = await axios.post(`${API_BASE_URL}/api/soil/analyze`, payload);
       setResult(response.data?.data || response.data);
     } catch (err) {
       setError(

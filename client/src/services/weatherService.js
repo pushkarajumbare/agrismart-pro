@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Uses REACT_APP_API_URL in production or defaults to local Flask/Node backend
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// Uses REACT_APP_API_URL in production or defaults to live Render backend
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://agrismart-pro-3.onrender.com';
 const WEATHER_API_URL = `${API_BASE_URL}/api/weather`;
 
 /**
