@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Beaker, AlertCircle, Loader, TrendingUp } from 'lucide-react';
+import { Sprout, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 
-const SoilAnalysis = () => {
+const SoilAnalysisForm = () => {
   const [formData, setFormData] = useState({
     nitrogen: '',
     phosphorus: '',
@@ -14,272 +14,257 @@ const SoilAnalysis = () => {
     moisture: ''
   });
 
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [result, setResult] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const parseNumber = (val, fallback = undefined) => {
+    const parsed = parseFloat(val);
+    return isNaN(parsed) ? fallback : parsed;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
+    setResult(null); // Clear previous results while analyzing new data
 
-    // Validation
-    if (!formData.nitrogen || !formData.phosphorus || !formData.potassium || !formData.ph) {
+    // Validate required fields
+    const requiredFields = ['nitrogen', 'phosphorus', 'potassium', 'ph'];
+    const missing = requiredFields.some(
+      (field) => !formData[field].toString().trim()
+    );
+
+    if (missing) {
       setError('Please fill in all required fields (N, P, K, pH)');
-      setLoading(false);
       return;
     }
 
-    try {
-      const response = await axios.post('http://localhost:5000/api/soil/analyze', {
-        nitrogen: parseFloat(formData.nitrogen),
-        phosphorus: parseFloat(formData.phosphorus),
-        potassium: parseFloat(formData.potassium),
-        ph: parseFloat(formData.ph),
-        temperature: parseFloat(formData.temperature) || 25,
-        humidity: parseFloat(formData.humidity) || 65,
-        rainfall: parseFloat(formData.rainfall) || 600,
-        moisture: parseFloat(formData.moisture) || 50
-      });
+    setLoading(true);
 
+    try {
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      
+      const payload = {
+        nitrogen: parseNumber(formData.nitrogen),
+        phosphorus: parseNumber(formData.phosphorus),
+        potassium: parseNumber(formData.potassium),
+        ph: parseNumber(formData.ph),
+        temperature: parseNumber(formData.temperature, 25),
+        humidity: parseNumber(formData.humidity, 65),
+        rainfall: parseNumber(formData.rainfall, 600),
+        moisture: parseNumber(formData.moisture, 50)
+      };
+
+      const response = await axios.post(`${baseUrl}/api/soil/analyze`, payload);
       setResult(response.data?.data || response.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'Error analyzing soil. Please try again.');
+      setError(
+        err.response?.data?.message ||
+          'Failed to connect to the analysis server. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-xl my-8 border border-gray-100">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-green-100 rounded-lg">
-          <Beaker size={24} className="text-green-700" />
+      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
+        <div className="p-3 bg-green-100 text-green-700 rounded-lg">
+          <Sprout className="w-6 h-6" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Soil Analysis</h2>
-          <p className="text-sm text-gray-600">Enter soil properties for crop recommendations</p>
+          <h2 className="text-2xl font-bold text-gray-800">Soil Analysis & Crop Advisor</h2>
+          <p className="text-sm text-gray-500">Input soil metrics to receive tailored crop recommendations.</p>
         </div>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4 mb-6">
-        {/* NPK Inputs */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Nitrogen (N) mg/kg *</label>
-          <input
-            type="number"
-            name="nitrogen"
-            placeholder="0-200"
-            value={formData.nitrogen}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Phosphorus (P) mg/kg *</label>
-          <input
-            type="number"
-            name="phosphorus"
-            placeholder="0-200"
-            value={formData.phosphorus}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Potassium (K) mg/kg *</label>
-          <input
-            type="number"
-            name="potassium"
-            placeholder="0-200"
-            value={formData.potassium}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">pH Level *</label>
-          <input
-            type="number"
-            name="ph"
-            step="0.1"
-            placeholder="0-14"
-            value={formData.ph}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-            required
-          />
-        </div>
-
-        {/* Optional Weather Inputs */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Temperature (°C)</label>
-          <input
-            type="number"
-            name="temperature"
-            placeholder="0-50"
-            value={formData.temperature}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Humidity (%)</label>
-          <input
-            type="number"
-            name="humidity"
-            placeholder="0-100"
-            value={formData.humidity}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Rainfall (mm)</label>
-          <input
-            type="number"
-            name="rainfall"
-            placeholder="0-2000"
-            value={formData.rainfall}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Soil Moisture (%)</label>
-          <input
-            type="number"
-            name="moisture"
-            placeholder="0-100"
-            value={formData.moisture}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-        </div>
-
-        {/* Submit Button */}
-        <div className="md:col-span-2">
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-green-700 text-white font-semibold rounded-lg hover:bg-green-800 disabled:bg-gray-400 transition-colors flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <Loader size={20} className="animate-spin" />
-                Analyzing Soil...
-              </>
-            ) : (
-              <>
-                <TrendingUp size={20} />
-                Analyze Soil
-              </>
-            )}
-          </button>
-        </div>
-      </form>
-
-      {/* Error Message */}
+      {/* Error Banner */}
       {error && (
-        <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded flex gap-3 mb-6">
-          <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <p className="text-sm font-medium">{error}</p>
         </div>
       )}
 
-      {/* Results */}
+      {/* Main Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <h3 className="text-md font-semibold text-gray-700 mb-3">Primary Soil Nutrients <span className="text-red-500">*</span></h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Nitrogen (N)</label>
+              <input
+                type="number"
+                name="nitrogen"
+                step="any"
+                min="0"
+                placeholder="0-140"
+                value={formData.nitrogen}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Phosphorus (P)</label>
+              <input
+                type="number"
+                name="phosphorus"
+                step="any"
+                min="0"
+                placeholder="0-145"
+                value={formData.phosphorus}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Potassium (K)</label>
+              <input
+                type="number"
+                name="potassium"
+                step="any"
+                min="0"
+                placeholder="0-205"
+                value={formData.potassium}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">pH Level</label>
+              <input
+                type="number"
+                name="ph"
+                step="0.1"
+                min="0"
+                max="14"
+                placeholder="0-14"
+                value={formData.ph}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                required
+              />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-md font-semibold text-gray-700 mb-3">Environmental Factors <span className="text-xs text-gray-400 font-normal">(Optional — system defaults apply)</span></h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Temperature (°C)</label>
+              <input
+                type="number"
+                name="temperature"
+                step="any"
+                placeholder="25"
+                value={formData.temperature}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Humidity (%)</label>
+              <input
+                type="number"
+                name="humidity"
+                step="any"
+                placeholder="65"
+                value={formData.humidity}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Rainfall (mm)</label>
+              <input
+                type="number"
+                name="rainfall"
+                step="any"
+                placeholder="600"
+                value={formData.rainfall}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Moisture (%)</label>
+              <input
+                type="number"
+                name="moisture"
+                step="any"
+                placeholder="50"
+                value={formData.moisture}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Analyzing Soil Data...
+            </>
+          ) : (
+            'Analyze Soil & Recommend Crops'
+          )}
+        </button>
+      </form>
+
+      {/* Results Display */}
       {result && (
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6 border border-green-100">
-          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <TrendingUp size={24} className="text-green-700" />
-            Analysis Results
-          </h3>
-
-          {/* Recommended Crop */}
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
-            <div className="p-4 bg-white rounded-lg border-l-4 border-green-500">
-              <p className="text-xs font-semibold text-gray-600 uppercase">Recommended Crop</p>
-              <p className="text-2xl font-bold text-green-700 mt-2">{result.recommended_crop}</p>
-              <p className="text-sm text-gray-600 mt-2">Best choice for your soil</p>
-            </div>
-
-            <div className="p-4 bg-white rounded-lg border-l-4 border-blue-500">
-              <p className="text-xs font-semibold text-gray-600 uppercase">Soil Health Score</p>
-              <p className="text-2xl font-bold text-blue-700 mt-2">{Math.round(result.soil_health_score || 0)}/100</p>
-              <p className="text-sm text-gray-600 mt-2">Overall soil condition</p>
-            </div>
+        <div className="mt-8 p-6 bg-green-50 border border-green-200 rounded-lg space-y-4">
+          <div className="flex items-center gap-2 text-green-800 font-semibold text-lg">
+            <CheckCircle2 className="w-5 h-5" />
+            Analysis Complete
           </div>
 
-          {/* Alternative Crops */}
-          {result.alternative_crops && result.alternative_crops.length > 0 && (
-            <div className="mb-6 p-4 bg-white rounded-lg">
-              <p className="font-semibold text-gray-800 mb-3">Top Alternative Crops</p>
-              <div className="flex flex-wrap gap-2">
-                {result.alternative_crops.map((crop, idx) => (
-                  <span key={idx} className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                    {crop}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Deficiencies */}
-          {result.nutrient_deficiencies && result.nutrient_deficiencies.length > 0 && (
-            <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg">
-              <p className="font-semibold text-gray-800 mb-3">⚠️ Nutrient Deficiencies</p>
-              <ul className="space-y-2">
-                {result.nutrient_deficiencies.map((def, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
-                    <span className="text-yellow-600 mt-1">•</span>
-                    <span>{def}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Info Grid */}
-          <div className="grid md:grid-cols-3 gap-4 text-sm">
-            {result.water_requirement && (
-              <div className="p-3 bg-white rounded border-l-4 border-cyan-400">
-                <p className="font-semibold text-gray-700">💧 Water Requirement</p>
-                <p className="text-gray-600 mt-1">{result.water_requirement}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {result.recommendedCrop && (
+              <div className="p-4 bg-white rounded-md border border-green-100 shadow-sm">
+                <span className="text-xs text-gray-500 uppercase tracking-wider block mb-1">Recommended Crop</span>
+                <span className="text-xl font-bold text-green-700">{result.recommendedCrop}</span>
               </div>
             )}
-            {result.expected_yield && (
-              <div className="p-3 bg-white rounded border-l-4 border-orange-400">
-                <p className="font-semibold text-gray-700">🌾 Expected Yield</p>
-                <p className="text-gray-600 mt-1">{result.expected_yield}</p>
-              </div>
-            )}
-            {result.season_recommendation && (
-              <div className="p-3 bg-white rounded border-l-4 border-purple-400">
-                <p className="font-semibold text-gray-700">📅 Season</p>
-                <p className="text-gray-600 mt-1">{result.season_recommendation}</p>
+            
+            {result.confidenceScore && (
+              <div className="p-4 bg-white rounded-md border border-green-100 shadow-sm">
+                <span className="text-xs text-gray-500 uppercase tracking-wider block mb-1">Confidence Score</span>
+                <span className="text-xl font-bold text-green-700">{result.confidenceScore}%</span>
               </div>
             )}
           </div>
+
+          {result.suggestions && (
+            <div className="p-4 bg-white rounded-md border border-green-100 shadow-sm">
+              <span className="text-xs text-gray-500 uppercase tracking-wider block mb-2">Soil Health Suggestions</span>
+              <p className="text-sm text-gray-700 leading-relaxed">{result.suggestions}</p>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 };
 
-export default SoilAnalysis;
+export default SoilAnalysisForm;

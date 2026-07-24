@@ -24,7 +24,9 @@ const WeatherCard = () => {
   const [locationLoading, setLocationLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Auto-detect current location on first load
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+  // Auto-detect current location on initial mount
   useEffect(() => {
     handleUseCurrentLocation();
   }, []);
@@ -33,12 +35,14 @@ const WeatherCard = () => {
     setLocationLoading(true);
     setError(null);
     try {
-      const res = await axios.get(`http://localhost:5000/api/weather/current?lat=${lat}&lon=${lon}`);
+      const res = await axios.get(`${API_BASE_URL}/api/weather/current?lat=${lat}&lon=${lon}`);
       const data = res.data?.data || res.data;
-      setWeather(data.current);
+      setWeather(data.current || data);
       setForecast(data.forecast || []);
     } catch (err) {
       setError(err.response?.data?.message || 'Unable to fetch weather for your location.');
+      setWeather(null);
+      setForecast([]);
     } finally {
       setLocationLoading(false);
     }
@@ -80,7 +84,7 @@ const WeatherCard = () => {
     setError(null);
 
     try {
-      const res = await axios.get(`http://localhost:5000/api/weather/search/${encodeURIComponent(city)}`);
+      const res = await axios.get(`${API_BASE_URL}/api/weather/search/${encodeURIComponent(city.trim())}`);
       const data = res.data?.data || res.data;
       setWeather(data.current || data);
       setForecast(data.forecast || []);
@@ -97,35 +101,35 @@ const WeatherCard = () => {
     if (e.key === 'Enter') handleSearch();
   };
 
-  // Generate smart farming advice based on current conditions
+  // Generate localized agricultural recommendations
   const getFarmingAdvice = (w) => {
     if (!w) return null;
-    const { temperature, humidity, rainfall } = w;
+    const { temperature, humidity, rainfall = 0 } = w;
 
     if (rainfall > 5) {
       return {
         title: 'High Rain Expected - Hold Irrigation',
-        desc: 'Sufficient rainfall expected. Avoid running pumps or applying water-soluble fertilizers today.',
+        desc: 'Sufficient rainfall detected. Avoid running pumps or applying water-soluble fertilizers today.',
         badgeBg: 'bg-blue-100 text-blue-800 border-blue-300'
       };
     }
     if (temperature > 35 && humidity < 40) {
       return {
         title: 'High Heat & Low Humidity - Increase Irrigation',
-        desc: 'Evaporation rates are high. Schedule deep watering during early morning or evening hours to protect crops.',
+        desc: 'Evaporation rates are high. Schedule deep watering during early morning or evening hours to protect crop roots.',
         badgeBg: 'bg-amber-100 text-amber-800 border-amber-300'
       };
     }
     if (humidity > 80) {
       return {
-        title: 'High Humidity - Monitor For Fungal Infections',
-        desc: 'Moist conditions increase risk of blight or rust. Inspect leaf undersides and consider preventative bio-fungicides.',
+        title: 'High Humidity - Monitor For Fungal Diseases',
+        desc: 'Moist conditions increase the risk of fungal infections. Inspect leaf undersides and consider applying organic protective sprays.',
         badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-300'
       };
     }
     return {
       title: 'Favorable Field Conditions',
-      desc: 'Weather parameters are in optimal range for general field maintenance, weeding, and standard spraying.',
+      desc: 'Weather parameters are in optimal range for general field maintenance, weeding, harvesting, and standard spraying.',
       badgeBg: 'bg-green-100 text-green-800 border-green-300'
     };
   };
@@ -133,7 +137,7 @@ const WeatherCard = () => {
   const advice = getFarmingAdvice(weather);
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 max-w-4xl mx-auto space-y-6">
+    <div className="bg-white rounded-xl shadow-lg p-6 max-w-4xl mx-auto space-y-6 my-6 border border-gray-100">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-100 pb-4">
         <div className="flex items-center gap-3">
@@ -146,18 +150,18 @@ const WeatherCard = () => {
           </div>
         </div>
 
-        {/* GPS Quick Action */}
+        {/* GPS Location Button */}
         <button
           onClick={handleUseCurrentLocation}
-          disabled={locationLoading}
+          disabled={locationLoading || loading}
           className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-700 text-white font-semibold rounded-lg hover:bg-emerald-800 disabled:opacity-60 transition-all shadow-sm text-sm"
         >
           {locationLoading ? <Loader size={18} className="animate-spin" /> : <Compass size={18} />}
-          <span>📍 Use My Current Location</span>
+          <span>Use My Location</span>
         </button>
       </div>
 
-      {/* Manual Search Fallback */}
+      {/* Manual Search Bar */}
       <div className="flex gap-2">
         <input
           type="text"
@@ -178,7 +182,7 @@ const WeatherCard = () => {
         </button>
       </div>
 
-      {/* Error Alert */}
+      {/* Error Alert Banner */}
       {error && (
         <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-center gap-3">
           <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
@@ -186,26 +190,26 @@ const WeatherCard = () => {
         </div>
       )}
 
-      {/* Weather Content */}
+      {/* Weather Insights Content */}
       {weather && (
         <div className="space-y-6">
-          {/* Current Weather Banner */}
+          {/* Main Weather Summary Banner */}
           <div className="bg-gradient-to-br from-emerald-800 to-green-900 text-white rounded-xl p-6 shadow-md">
             <div className="grid md:grid-cols-2 gap-6 items-center">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <MapPin size={22} className="text-emerald-300" />
-                  <h3 className="text-2xl font-bold">{weather.city}, {weather.country}</h3>
+                  <h3 className="text-2xl font-bold">{weather.city || 'Current Location'}{weather.country ? `, ${weather.country}` : ''}</h3>
                 </div>
                 <p className="text-6xl font-black tracking-tight my-2">
                   {Math.round(weather.temperature)}°C
                 </p>
                 <p className="text-emerald-200 font-medium capitalize flex items-center gap-2 text-lg">
-                  {weather.description}
+                  {weather.description || 'Clear'}
                 </p>
               </div>
 
-              {/* Sunrise & Sunset */}
+              {/* Sunrise & Sunset Details */}
               <div className="grid grid-cols-2 gap-3 bg-white/10 p-4 rounded-lg backdrop-blur-sm border border-white/10">
                 <div className="flex items-center gap-3">
                   <Sunrise size={24} className="text-amber-300" />
@@ -232,7 +236,7 @@ const WeatherCard = () => {
                 <Droplets size={18} className="text-cyan-600" />
                 <p className="text-xs font-bold text-gray-600">Humidity</p>
               </div>
-              <p className="text-2xl font-bold text-gray-800">{weather.humidity}%</p>
+              <p className="text-2xl font-bold text-gray-800">{weather.humidity ?? 'N/A'}%</p>
             </div>
 
             <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-xl">
@@ -240,7 +244,7 @@ const WeatherCard = () => {
                 <Wind size={18} className="text-orange-600" />
                 <p className="text-xs font-bold text-gray-600">Wind Speed</p>
               </div>
-              <p className="text-2xl font-bold text-gray-800">{weather.wind_speed} m/s</p>
+              <p className="text-2xl font-bold text-gray-800">{weather.wind_speed ?? 'N/A'} m/s</p>
             </div>
 
             <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-xl">
@@ -248,7 +252,7 @@ const WeatherCard = () => {
                 <Gauge size={18} className="text-purple-600" />
                 <p className="text-xs font-bold text-gray-600">Pressure</p>
               </div>
-              <p className="text-2xl font-bold text-gray-800">{weather.pressure} hPa</p>
+              <p className="text-2xl font-bold text-gray-800">{weather.pressure ?? 'N/A'} hPa</p>
             </div>
 
             <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-xl">
@@ -257,7 +261,7 @@ const WeatherCard = () => {
                 <p className="text-xs font-bold text-gray-600">Visibility</p>
               </div>
               <p className="text-2xl font-bold text-gray-800">
-                {(weather.visibility / 1000).toFixed(1)} km
+                {weather.visibility != null ? `${(weather.visibility / 1000).toFixed(1)} km` : 'N/A'}
               </p>
             </div>
           </div>

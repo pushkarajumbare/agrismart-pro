@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Camera, AlertCircle, Loader, Trash2, CheckCircle } from 'lucide-react';
 
+// Dynamically use Vercel environment variable with Render Node backend fallback
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://agrismart-pro-3.onrender.com';
+
 const DiseaseScanner = ({ activeUserEmail = 'guest', onScanSaved }) => {
     const [selectedFile, setSelectedFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
@@ -57,7 +60,7 @@ const DiseaseScanner = ({ activeUserEmail = 'guest', onScanSaved }) => {
         const record = {
             id: Date.now(),
             plant: 'Leaf Scan',
-            diagnosis: result.disease || 'Unknown',
+            diagnosis: result.disease || result.prediction || 'Unknown',
             confidence: result.confidence || '0%',
             date: new Date().toLocaleDateString()
         };
@@ -84,24 +87,32 @@ const DiseaseScanner = ({ activeUserEmail = 'guest', onScanSaved }) => {
         setError(null);
 
         const formData = new FormData();
-        // FIXED: Changed key from 'image' to 'file' to match what FastAPI expects
+        // File field name expected by Node & FastAPI multer/form-data middleware
         formData.append('file', selectedFile);
 
         try {
-            // FIXED: Target port 8000 and matching /api/disease/predict endpoint
+            // Target Node.js backend service route instead of localhost:8000
             const response = await axios.post(
-                'http://localhost:8000/api/disease/predict',
+                `${API_BASE_URL}/api/disease/predict`,
                 formData,
-                { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 }
+                { 
+                    headers: { 'Content-Type': 'multipart/form-data' }, 
+                    timeout: 45000 // 45 sec timeout to allow for Render free-tier cold starts
+                }
             );
+
             const result = response.data?.data || response.data;
             setScanResult(result);
             saveScanRecord(result);
         } catch (err) {
-            const errorMsg = err.response?.data?.message || err.message || 'Failed to analyze image. Please try again.';
+            const errorMsg = 
+                err.response?.data?.message || 
+                err.response?.data?.details || 
+                err.message || 
+                'Failed to analyze image. Please try again.';
             setError(errorMsg);
         } finally {
-            loading && setLoading(false);
+            setLoading(false);
         }
     };
 
@@ -221,11 +232,15 @@ const DiseaseScanner = ({ activeUserEmail = 'guest', onScanSaved }) => {
                     <div className="grid md:grid-cols-2 gap-4 mb-4">
                         <div className="p-4 bg-white rounded border-l-4 border-red-500">
                             <p className="text-xs font-semibold text-gray-600 uppercase">Disease</p>
-                            <p className="text-2xl font-bold text-red-700 mt-1">{scanResult.disease}</p>
+                            <p className="text-2xl font-bold text-red-700 mt-1">
+                                {scanResult.disease || scanResult.prediction || 'N/A'}
+                            </p>
                         </div>
                         <div className="p-4 bg-white rounded border-l-4 border-blue-500">
                             <p className="text-xs font-semibold text-gray-600 uppercase">Confidence</p>
-                            <p className="text-2xl font-bold text-blue-700 mt-1">{scanResult.confidence || 'N/A'}</p>
+                            <p className="text-2xl font-bold text-blue-700 mt-1">
+                                {scanResult.confidence || 'N/A'}
+                            </p>
                         </div>
                     </div>
 

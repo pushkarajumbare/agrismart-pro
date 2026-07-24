@@ -26,17 +26,22 @@ const CropAdvisor = () => {
   const getRecommendations = async () => {
     setError(null);
     setLoading(true);
+try {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const response = await axios.post('http://localhost:5000/api/crop/recommend', {
-        nitrogen: parseFloat(formData.nitrogen),
-        phosphorus: parseFloat(formData.phosphorus),
-        potassium: parseFloat(formData.potassium),
-        ph: parseFloat(formData.ph),
-        temperature: parseFloat(formData.temperature),
-        humidity: parseFloat(formData.humidity),
-        rainfall: parseFloat(formData.rainfall),
-        moisture: parseFloat(formData.moisture)
+      // Dynamic base URL for live backend (Render) with process fallback
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://agrismart-pro-3.onrender.com';
+
+      const response = await axios.post(`${API_BASE_URL}/api/crop/recommend`, {
+        nitrogen: parseFloat(formData.nitrogen) || 0,
+        phosphorus: parseFloat(formData.phosphorus) || 0,
+        potassium: parseFloat(formData.potassium) || 0,
+        ph: parseFloat(formData.ph) || 7.0,
+        temperature: parseFloat(formData.temperature) || 25.0,
+        humidity: parseFloat(formData.humidity) || 60.0,
+        rainfall: parseFloat(formData.rainfall) || 100.0,
+        moisture: parseFloat(formData.moisture) || 50.0
       });
 
       setRecommendation(response.data?.data || response.data);

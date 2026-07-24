@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { DollarSign, AlertCircle, Loader, BarChart3 } from 'lucide-react';
 
+// Base API configuration using environment variables with live Render fallback
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://agrismart-pro-3.onrender.com';
+
 const CostEstimation = () => {
   const [formData, setFormData] = useState({
     crop: 'Rice',
@@ -25,18 +28,19 @@ const CostEstimation = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/cost/estimate",
+        `${API_BASE_URL}/api/cost/estimate`,
         {
           crop: formData.crop,
-          area_hectares: parseFloat(formData.area_hectares),
-          expected_yield_per_hectare: parseFloat(formData.expected_yield_per_hectare),
-          market_price_per_unit: parseFloat(formData.market_price_per_unit)
+          area_hectares: parseFloat(formData.area_hectares) || 0,
+          expected_yield_per_hectare: parseFloat(formData.expected_yield_per_hectare) || 0,
+          market_price_per_unit: parseFloat(formData.market_price_per_unit) || 0
         }
       );
       console.log("Cost API Response:", response.data);
       setEstimate(response.data?.data || response.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to calculate costs');
+      console.error("Cost Estimation API Error:", err);
+      setError(err.response?.data?.message || 'Failed to calculate costs. Make sure the server is reachable.');
     } finally {
       setLoading(false);
     }
@@ -50,6 +54,8 @@ const CostEstimation = () => {
   const profitMargin = estimate?.profit_margin ?? estimate?.profitMargin;
   const breakEvenYield = estimate?.break_even_yield ?? estimate?.breakEvenYield;
   const riskLevel = estimate?.risk_level ?? estimate?.riskLevel;
+
+  const inputStyle = "w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none text-gray-800 bg-white";
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 max-w-4xl mx-auto">
@@ -74,13 +80,13 @@ const CostEstimation = () => {
               name="crop" 
               value={formData.crop} 
               onChange={handleChange} 
-              className="input-field"
+              className={inputStyle}
             >
-              <option>Rice</option>
-              <option>Wheat</option>
-              <option>Maize</option>
-              <option>Cotton</option>
-              <option>Sugarcane</option>
+              <option value="Rice">Rice</option>
+              <option value="Wheat">Wheat</option>
+              <option value="Maize">Maize</option>
+              <option value="Cotton">Cotton</option>
+              <option value="Sugarcane">Sugarcane</option>
             </select>
           </div>
           <div>
@@ -90,7 +96,9 @@ const CostEstimation = () => {
               name="area_hectares" 
               value={formData.area_hectares} 
               onChange={handleChange} 
-              className="input-field" 
+              className={inputStyle}
+              min="0"
+              step="any"
             />
           </div>
           <div>
@@ -100,7 +108,9 @@ const CostEstimation = () => {
               name="expected_yield_per_hectare" 
               value={formData.expected_yield_per_hectare} 
               onChange={handleChange} 
-              className="input-field" 
+              className={inputStyle}
+              min="0"
+              step="any"
             />
           </div>
           <div>
@@ -110,7 +120,9 @@ const CostEstimation = () => {
               name="market_price_per_unit" 
               value={formData.market_price_per_unit} 
               onChange={handleChange} 
-              className="input-field" 
+              className={inputStyle}
+              min="0"
+              step="any"
             />
           </div>
         </div>
@@ -118,7 +130,7 @@ const CostEstimation = () => {
         <button 
           onClick={calculateCost} 
           disabled={loading} 
-          className="w-full md:w-auto px-6 py-3 bg-yellow-700 text-white font-semibold rounded-lg hover:bg-yellow-800 disabled:bg-gray-400 transition-colors flex items-center justify-center gap-2"
+          className="w-full md:w-auto px-6 py-3 bg-yellow-700 text-white font-semibold rounded-lg hover:bg-yellow-800 disabled:bg-gray-400 transition-colors flex items-center justify-center gap-2 cursor-pointer"
         >
           {loading ? (
             <>
@@ -136,8 +148,8 @@ const CostEstimation = () => {
 
       {/* Error */}
       {error && (
-        <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded flex gap-3 mb-6">
-          <AlertCircle size={20} className="text-red-600" />
+        <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded flex gap-3 mb-6 items-center">
+          <AlertCircle size={20} className="text-red-600 flex-shrink-0" />
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
@@ -152,39 +164,47 @@ const CostEstimation = () => {
 
           <div className="grid md:grid-cols-2 gap-4 mb-6">
             {totalInvestment !== undefined && (
-              <div className="p-4 bg-white rounded border-l-4 border-orange-500 shadow">
+              <div className="p-4 bg-white rounded-lg border-l-4 border-orange-500 shadow-sm">
                 <p className="text-sm text-gray-600 font-semibold">Total Investment</p>
-                <p className="text-3xl font-bold text-orange-700 mt-2">₹{totalInvestment.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-orange-700 mt-2">
+                  ₹{typeof totalInvestment === 'number' ? totalInvestment.toLocaleString() : totalInvestment}
+                </p>
               </div>
             )}
             {expectedRevenue !== undefined && (
-              <div className="p-4 bg-white rounded border-l-4 border-green-500 shadow">
+              <div className="p-4 bg-white rounded-lg border-l-4 border-green-500 shadow-sm">
                 <p className="text-sm text-gray-600 font-semibold">Expected Revenue</p>
-                <p className="text-3xl font-bold text-green-700 mt-2">₹{expectedRevenue.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-green-700 mt-2">
+                  ₹{typeof expectedRevenue === 'number' ? expectedRevenue.toLocaleString() : expectedRevenue}
+                </p>
               </div>
             )}
             {netProfit !== undefined && (
-              <div className="p-4 bg-white rounded border-l-4 border-blue-500 shadow">
+              <div className="p-4 bg-white rounded-lg border-l-4 border-blue-500 shadow-sm">
                 <p className="text-sm text-gray-600 font-semibold">Net Profit</p>
-                <p className="text-3xl font-bold text-blue-700 mt-2">₹{netProfit.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-blue-700 mt-2">
+                  ₹{typeof netProfit === 'number' ? netProfit.toLocaleString() : netProfit}
+                </p>
               </div>
             )}
             {roi !== undefined && (
-              <div className="p-4 bg-white rounded border-l-4 border-purple-500 shadow">
+              <div className="p-4 bg-white rounded-lg border-l-4 border-purple-500 shadow-sm">
                 <p className="text-sm text-gray-600 font-semibold">Return on Investment</p>
                 <p className="text-3xl font-bold text-purple-700 mt-2">{roi}%</p>
               </div>
             )}
           </div>
 
-          {profitMargin !== undefined && (
+          {(profitMargin !== undefined || breakEvenYield !== undefined) && (
             <div className="grid md:grid-cols-2 gap-4 mb-6">
-              <div className="p-4 bg-white rounded border-l-4 border-indigo-500 shadow">
-                <p className="text-sm text-gray-600 font-semibold">Profit Margin</p>
-                <p className="text-2xl font-bold text-indigo-700 mt-2">{profitMargin}%</p>
-              </div>
+              {profitMargin !== undefined && (
+                <div className="p-4 bg-white rounded-lg border-l-4 border-indigo-500 shadow-sm">
+                  <p className="text-sm text-gray-600 font-semibold">Profit Margin</p>
+                  <p className="text-2xl font-bold text-indigo-700 mt-2">{profitMargin}%</p>
+                </div>
+              )}
               {breakEvenYield !== undefined && (
-                <div className="p-4 bg-white rounded border-l-4 border-cyan-500 shadow">
+                <div className="p-4 bg-white rounded-lg border-l-4 border-cyan-500 shadow-sm">
                   <p className="text-sm text-gray-600 font-semibold">Break-Even Yield</p>
                   <p className="text-2xl font-bold text-cyan-700 mt-2">{breakEvenYield} units</p>
                 </div>
@@ -193,7 +213,7 @@ const CostEstimation = () => {
           )}
 
           {riskLevel && (
-            <div className="p-4 bg-white rounded border-l-4 border-red-500">
+            <div className="p-4 bg-white rounded-lg border-l-4 border-red-500 shadow-sm">
               <p className="font-semibold text-gray-800 mb-1">⚠️ Risk Assessment</p>
               <p className="text-sm text-gray-700">{riskLevel}</p>
             </div>

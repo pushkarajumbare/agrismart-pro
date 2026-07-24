@@ -9,7 +9,12 @@ const FormData = require('form-data');
 const { GoogleGenAI } = require('@google/genai');
 const Logger = require('../utils/logger');
 
-const PYTHON_API_BASE = process.env.PYTHON_API_URL || 'http://127.0.0.1:8000';
+// Dynamically use environment variable with fallback to live Render URL
+const PYTHON_API_BASE =
+  process.env.PYTHON_API_URL ||
+  process.env.AI_SERVICE_URL ||
+  'https://agrismart-pro-2.onrender.com';
+
 const TIMEOUT = 15000; // 15 seconds
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
