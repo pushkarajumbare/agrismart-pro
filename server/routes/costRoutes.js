@@ -9,5 +9,6 @@ const router = express.Router();
 
 // Routes
 router.post('/estimate', CostController.estimateCost);
+router.post('/', CostController.estimateCost);
 
 module.exports = router;

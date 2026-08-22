@@ -7,16 +7,16 @@ const InputValidator = {
   validateSoilData: (data) => {
     const errors = {};
     
-    if (data.nitrogen !== undefined && (isNaN(data.nitrogen) || data.nitrogen < 0 || data.nitrogen > 200)) {
-      errors.nitrogen = 'Nitrogen must be between 0-200';
+    if (data.nitrogen !== undefined && (isNaN(data.nitrogen) || data.nitrogen < 0 || data.nitrogen > 1000)) {
+      errors.nitrogen = 'Nitrogen must be between 0-1000';
     }
     
-    if (data.phosphorus !== undefined && (isNaN(data.phosphorus) || data.phosphorus < 0 || data.phosphorus > 200)) {
-      errors.phosphorus = 'Phosphorus must be between 0-200';
+    if (data.phosphorus !== undefined && (isNaN(data.phosphorus) || data.phosphorus < 0 || data.phosphorus > 1000)) {
+      errors.phosphorus = 'Phosphorus must be between 0-1000';
     }
     
-    if (data.potassium !== undefined && (isNaN(data.potassium) || data.potassium < 0 || data.potassium > 200)) {
-      errors.potassium = 'Potassium must be between 0-200';
+    if (data.potassium !== undefined && (isNaN(data.potassium) || data.potassium < 0 || data.potassium > 1000)) {
+      errors.potassium = 'Potassium must be between 0-1000';
     }
     
     if (data.ph !== undefined && (isNaN(data.ph) || data.ph < 0 || data.ph > 14)) {

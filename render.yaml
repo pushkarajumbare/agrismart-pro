@@ -1,7 +1,7 @@
 services:
   # Node.js Express Backend Service
   - type: web
-    name: agrismart-pro-backend
+    name: agrismart-pro-3
     env: node
     region: singapore
     plan: free
@@ -10,10 +10,12 @@ services:
     startCommand: node index.js
     envVars:
       - key: PORT
-        value: 5000
+        value: 10000
       - key: NODE_ENV
         value: production
-      - key: PYTHON_API_BASE
+      - key: PYTHON_API_URL
+        value: https://agrismart-pro-2.onrender.com
+      - key: AI_SERVICE_URL
         value: https://agrismart-pro-2.onrender.com
       - key: CLIENT_URL
         value: https://agrismart-pro.vercel.app

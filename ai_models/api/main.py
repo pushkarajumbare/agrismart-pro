@@ -172,7 +172,9 @@ async def health_check():
 # ============================================================================
 
 @app.post("/api/disease/predict")
+@app.post("/api/disease/predict/")
 @app.post("/api/scan")
+@app.post("/api/scan/")
 async def scan_leaf(file: UploadFile = File(...)):
     try:
         contents = await file.read()
@@ -220,6 +222,9 @@ async def scan_leaf(file: UploadFile = File(...)):
 # ============================================================================
 
 @app.post("/api/soil/analyze")
+@app.post("/api/soil/analyze/")
+@app.post("/api/soil")
+@app.post("/api/soil/")
 async def analyze_soil(data: SoilDataModel):
     try:
         logger.info(f"Analyzing soil with N={data.nitrogen}, P={data.phosphorus}, K={data.potassium}")
@@ -288,6 +293,9 @@ def determine_soil_recommendation(n, p, k, ph):
 # ============================================================================
 
 @app.post("/api/crop/recommend")
+@app.post("/api/crop/recommend/")
+@app.post("/api/crop")
+@app.post("/api/crop/")
 async def recommend_crops(data: CropRecommendationModel):
     try:
         logger.info("Generating crop recommendation")
@@ -325,6 +333,9 @@ async def recommend_crops(data: CropRecommendationModel):
 # ============================================================================
 
 @app.post("/api/advice")
+@app.post("/api/advice/")
+@app.post("/api/ai/advice")
+@app.post("/api/ai/advice/")
 async def get_farming_advice(data: FarmingAdviceModel):
     try:
         weather = data.weather or {}
@@ -367,6 +378,9 @@ async def get_farming_advice(data: FarmingAdviceModel):
 # ============================================================================
 
 @app.post("/api/chat")
+@app.post("/api/chat/")
+@app.post("/api/ai/chat")
+@app.post("/api/ai/chat/")
 async def chat_bot(payload: ChatPayload):
     try:
         msg = payload.get_text().lower()

@@ -22,5 +22,6 @@ const uploadMiddleware = upload.fields([
 // Routes
 router.post('/scan', uploadMiddleware, DiseaseController.scanImage);
 router.post('/predict', uploadMiddleware, DiseaseController.scanImage);
+router.post('/', uploadMiddleware, DiseaseController.scanImage);
 
 module.exports = router;

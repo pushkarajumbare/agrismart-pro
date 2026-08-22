@@ -45,21 +45,22 @@ const AiController = {
    */
   chat: async (req, res) => {
     try {
-      const { question, chatHistory, context } = req.body;
+      const { question, message, prompt, chatHistory, context } = req.body;
+      const questionText = question || message || prompt;
 
-      if (!question || typeof question !== 'string' || !question.trim()) {
+      if (!questionText || typeof questionText !== 'string' || !questionText.trim()) {
         return res.status(400).json({
           success: false,
-          message: 'Question is required',
+          message: 'Question or message is required',
         });
       }
 
       Logger.info(
-        `API Hit: POST /api/ai/chat - Question: "${question.trim().substring(0, 30)}..."`
+        `API Hit: POST /api/ai/chat - Question: "${questionText.trim().substring(0, 30)}..."`
       );
 
       const replyText = await AiService.chatWithAi({
-        question: question.trim(),
+        question: questionText.trim(),
         chatHistory: chatHistory || [],
         context: context || {},
       });

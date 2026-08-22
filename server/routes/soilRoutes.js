@@ -9,5 +9,6 @@ const router = express.Router();
 
 // Routes
 router.post('/analyze', SoilController.analyzeSoil);
+router.post('/', SoilController.analyzeSoil);
 
 module.exports = router;
