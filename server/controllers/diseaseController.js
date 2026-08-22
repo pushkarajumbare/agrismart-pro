@@ -16,12 +16,15 @@ const DiseaseController = {
    */
   scanImage: async (req, res, next) => {
     try {
+      // Extract file from single upload or fields upload
+      const file = req.file || req.files?.file?.[0] || req.files?.image?.[0];
+
       // Validate image file
-      if (!req.file) {
+      if (!file) {
         return ResponseHandler.sendError(res, 'No image file uploaded', 400);
       }
 
-      const validation = ImageValidator.validateImage(req.file);
+      const validation = ImageValidator.validateImage(file);
       if (!validation.valid) {
         return ResponseHandler.sendError(
           res,
@@ -35,9 +38,9 @@ const DiseaseController = {
 
       // Send to Python AI backend
       const prediction = await AiService.predictDisease(
-        req.file.buffer,
-        req.file.originalname,
-        req.file.mimetype
+        file.buffer,
+        file.originalname,
+        file.mimetype
       );
 
       // Validate prediction structure

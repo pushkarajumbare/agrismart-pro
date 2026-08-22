@@ -88,22 +88,60 @@ const AiService = {
    * Get crop recommendation from Python backend
    */
   recommendCrops: async (cropData) => {
+    const endpoint = `${PYTHON_API_BASE}/api/crop/recommend`;
+
     try {
-      Logger.info('Requesting crop recommendation from Python...');
+      Logger.info(`Requesting crop recommendation from: ${endpoint}`);
+      Logger.info(`Request Payload: ${JSON.stringify(cropData)}`);
 
       const response = await axios.post(
-        `${PYTHON_API_BASE}/api/crop/recommend`,
+        endpoint,
         cropData,
-        { timeout: TIMEOUT }
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          timeout: TIMEOUT,
+        }
       );
 
-      Logger.success('Crop recommendation received');
+      Logger.success("Crop recommendation received successfully");
+      Logger.info(`Response: ${JSON.stringify(response.data)}`);
+
       return response.data;
     } catch (error) {
-      Logger.error('Crop recommendation error:', error.message);
+      Logger.error("Crop recommendation request failed");
+
+      if (error.response) {
+        Logger.error(`Status Code: ${error.response.status}`);
+        Logger.error(`Response Body: ${JSON.stringify(error.response.data)}`);
+
+        throw {
+          statusCode: error.response.status,
+          message:
+            error.response.data?.detail ||
+            error.response.data?.message ||
+            "Crop recommendation service unavailable",
+          details: error.response.data,
+        };
+      }
+
+      if (error.request) {
+        Logger.error("No response received from Python backend.");
+
+        throw {
+          statusCode: 503,
+          message: "Python AI server is unreachable.",
+          details: error.message,
+        };
+      }
+
+      Logger.error(`Unexpected Error: ${error.message}`);
+
       throw {
-        statusCode: 503,
-        message: 'Crop recommendation service unavailable',
+        statusCode: 500,
+        message: "Unexpected error while requesting crop recommendation.",
         details: error.message,
       };
     }

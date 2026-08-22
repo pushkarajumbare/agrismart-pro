@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../../config/api';
 import { DollarSign, PlusCircle, Trash2 } from 'lucide-react';
 
-// Base API configuration using environment variables with live Render fallback
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://agrismart-pro-3.onrender.com';
+
 
 const BudgetTracker = () => {
     const [expenses, setExpenses] = useState([]);

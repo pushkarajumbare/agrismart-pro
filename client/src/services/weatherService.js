@@ -1,7 +1,6 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 
-// Uses REACT_APP_API_URL in production or defaults to live Render backend
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://agrismart-pro-3.onrender.com';
 const WEATHER_API_URL = `${API_BASE_URL}/api/weather`;
 
 /**

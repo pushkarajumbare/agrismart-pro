@@ -12,6 +12,7 @@ const weatherRoutes = require('./routes/weatherRoutes');
 const cropRoutes = require('./routes/cropRoutes');
 const costRoutes = require('./routes/costRoutes');
 const budgetRoutes = require('./routes/budgetRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -27,10 +28,11 @@ const app = express();
 // MIDDLEWARE SETUP
 // ============================================================================
 
-// CORS configuration
+// CORS configuration supporting credentials and dynamic origins
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  origin: (origin, callback) => callback(null, true),
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true
 }));
 
@@ -56,7 +58,10 @@ app.get('/', (req, res) => {
       weather: '/api/weather',
       crop: '/api/crop',
       cost: '/api/cost',
-      budget: '/api/budget'
+      budget: '/api/budget',
+      ai: '/api/ai',
+      advice: '/api/advice',
+      chat: '/api/chat'
     }
   }, 'Server is operational');
 });
@@ -73,6 +78,8 @@ app.use('/api/weather', weatherRoutes);
 app.use('/api/crop', cropRoutes);
 app.use('/api/cost', costRoutes);
 app.use('/api/budget', budgetRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api', aiRoutes);
 
 // ============================================================================
 // HEALTH CHECK ENDPOINT

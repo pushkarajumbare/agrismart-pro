@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../../config/api';
 import { 
   Cloud, 
   MapPin, 
@@ -24,15 +25,7 @@ const WeatherCard = () => {
   const [locationLoading, setLocationLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Base API configuration using environment variables with live Render fallback
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://agrismart-pro-3.onrender.com';
-
-  // Auto-detect current location on initial mount
-  useEffect(() => {
-    handleUseCurrentLocation();
-  }, []);
-
-  const fetchWeatherByCoords = async (lat, lon) => {
+  const fetchWeatherByCoords = useCallback(async (lat, lon) => {
     setLocationLoading(true);
     setError(null);
     try {
@@ -47,9 +40,9 @@ const WeatherCard = () => {
     } finally {
       setLocationLoading(false);
     }
-  };
+  }, []);
 
-  const handleUseCurrentLocation = () => {
+  const handleUseCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setError('Geolocation is not supported by your browser.');
       return;
@@ -73,7 +66,12 @@ const WeatherCard = () => {
       },
       { timeout: 10000 }
     );
-  };
+  }, [fetchWeatherByCoords]);
+
+  // Auto-detect current location on initial mount
+  useEffect(() => {
+    handleUseCurrentLocation();
+  }, [handleUseCurrentLocation]);
 
   const handleSearch = async () => {
     if (!city.trim()) {

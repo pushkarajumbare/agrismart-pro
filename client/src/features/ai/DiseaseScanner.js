@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Camera, AlertCircle, Loader, Trash2, CheckCircle } from 'lucide-react';
 
-// Dynamically use Vercel environment variable with Render Node backend fallback
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://agrismart-pro-3.onrender.com';
+import { API_BASE_URL } from '../../config/api';
 
 const DiseaseScanner = ({ activeUserEmail = 'guest', onScanSaved }) => {
     const [selectedFile, setSelectedFile] = useState(null);

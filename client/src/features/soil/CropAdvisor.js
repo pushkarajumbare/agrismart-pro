@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../../config/api';
 import { 
   Sprout, 
   AlertCircle, 
@@ -23,8 +24,7 @@ const DEFAULT_FORM_STATE = {
   moisture: '50'
 };
 
-// Base API configuration using environment variables with live Render fallback
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://agrismart-pro-3.onrender.com';
+
 
 const CropAdvisor = () => {
   const [formData, setFormData] = useState(DEFAULT_FORM_STATE);
