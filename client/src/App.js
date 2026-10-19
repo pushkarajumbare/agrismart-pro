@@ -7,6 +7,7 @@ import CropAdvisor from './features/soil/CropAdvisor';
 import CostEstimation from './features/budget/CostEstimation';
 import ChatBot from './components/ChatBot';
 import ExpenseManager from './components/ExpenseManager';
+import { wakeAIService, wakeBackend } from './services/backendConnection';
 import { 
   Cloud, 
   ShieldAlert, 
@@ -234,13 +235,60 @@ export default function App() {
   const [scans, setScans] = useState([]);
   const [authError, setAuthError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [backendStatus, setBackendStatus] = useState('connecting');
+  const [aiStatus, setAiStatus] = useState('checking');
+  const [startupCheckComplete, setStartupCheckComplete] = useState(false);
   
   const t = I18N[lang] || I18N.en;
 
   useEffect(() => {
+    let active = true;
+
+    wakeBackend().then(
+      () => {
+        if (!active) return;
+        setBackendStatus('connected');
+        setStartupCheckComplete(true);
+      },
+      () => {
+        if (!active) return;
+        setBackendStatus('unavailable');
+        setStartupCheckComplete(true);
+      }
+    );
+
+    wakeAIService().then(
+      () => {
+        if (active) setAiStatus('available');
+      },
+      () => {
+        if (active) setAiStatus('unavailable');
+      }
+    );
+
     const session = read('agrismart_user', null);
     if (session?.email) activateSession(session);
+
+    return () => {
+      active = false;
+    };
   }, []);
+
+  const retryBackend = () => {
+    setBackendStatus('connecting');
+    wakeBackend().then(
+      () => setBackendStatus('connected'),
+      () => setBackendStatus('unavailable')
+    );
+  };
+
+  const retryAIService = () => {
+    setAiStatus('checking');
+    wakeAIService().then(
+      () => setAiStatus('available'),
+      () => setAiStatus('unavailable')
+    );
+  };
 
   const activateSession = (nextProfile) => {
     setProfile(nextProfile);
@@ -306,6 +354,17 @@ export default function App() {
 
   const goDash = () => { setView(profile ? 'dashboard' : 'login'); setTab('overview'); };
 
+  if (backendStatus === 'connecting' && !startupCheckComplete) {
+    return (
+      <main className="service-startup" role="status" aria-live="polite">
+        <Leaf size={44} />
+        <Loader2 className="animate-spin" size={32} />
+        <h1>Waking up AgriSmart Pro services…</h1>
+        <p>Please wait while we connect to the AgriSmart backend.</p>
+      </main>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <div className="ag-app">
@@ -330,6 +389,43 @@ export default function App() {
 
         {/* Top Navigation */}
         <Navigation t={t} lang={lang} setLang={setLanguage} profile={profile} setView={setView} goDash={goDash} logout={logout} menu={menu} setMenu={setMenu} />
+
+        {backendStatus === 'connecting' && (
+          <section className="service-notice service-notice-pending" role="status">
+            Reconnecting to AgriSmart services…
+          </section>
+        )}
+        {backendStatus === 'unavailable' && (
+          <section className="service-notice service-notice-error" role="alert">
+            <div>
+              <strong>AgriSmart backend is temporarily unavailable.</strong>
+              <p>
+                Weather, disease detection, soil analysis, crop advice, cost estimation, and AI chat
+                may not work until the backend reconnects. Your local expenses and history remain available.
+              </p>
+            </div>
+            <button onClick={retryBackend}>Retry connection</button>
+          </section>
+        )}
+        {aiStatus === 'checking' && (
+          <section className="service-notice service-notice-pending" role="status">
+            Checking the separate AI service…
+          </section>
+        )}
+        {aiStatus === 'unavailable' && (
+          <section className="service-notice service-notice-error" role="alert">
+            <div>
+              <strong>The separate Python AI service is temporarily unavailable.</strong>
+              <p>Disease detection, soil analysis, and crop recommendations may be unavailable.</p>
+            </div>
+            <button onClick={retryAIService}>Retry AI connection</button>
+          </section>
+        )}
+        {aiStatus === 'available' && (
+          <section className="service-notice service-notice-success" role="status">
+            Python AI service is online; Node API is {backendStatus}.
+          </section>
+        )}
         
         {menu && (
           <div className="mobile-menu">

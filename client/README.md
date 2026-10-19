@@ -68,3 +68,33 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+## Vercel and Render service configuration
+
+Set these frontend build environment variables in Vercel, then redeploy:
+
+```text
+REACT_APP_API_URL=https://agrismart-pro-3.onrender.com
+REACT_APP_PYTHON_API_URL=https://agrismart-pro-2.onrender.com
+```
+
+The frontend defaults to these Render service URLs if the variables are omitted. To adjust the bounded startup wake-up behavior, you may also set (values are milliseconds):
+
+```text
+REACT_APP_BACKEND_WAKE_TIMEOUT_MS=120000
+REACT_APP_HEALTH_REQUEST_TIMEOUT_MS=10000
+REACT_APP_HEALTH_RETRY_BASE_MS=1000
+REACT_APP_HEALTH_RETRY_MAX_MS=10000
+```
+
+On both Render services, set `CLIENT_URL` to the production Vercel origin:
+
+```text
+CLIENT_URL=https://agrismart-pro.vercel.app
+```
+
+The Node service also allows `http://localhost:3000` and `http://127.0.0.1:3000` for local development. Optional comma-separated Vercel preview origins can be added to either Render service as `CLIENT_URLS`. Keep the Node service's existing `PYTHON_API_URL` and `AI_SERVICE_URL` values pointing at the Python Render service. Do not put MongoDB credentials, OpenWeather keys, or Gemini keys in Vercel; keep secrets in Render.
+
+The app checks the Node API at `/api/health` and independently wakes the Python AI service at `/health`. Render may still need time to start a free service after inactivity; AgriSmart handles that cold start automatically with bounded retries.
+
+`/api/health` reports Node process liveness only. The current Node server explicitly runs without MongoDB initialization, so this endpoint does not claim MongoDB readiness; no MongoDB readiness check currently exists.

@@ -32,9 +32,22 @@ app = FastAPI(
 # MIDDLEWARE CONFIGURATION
 # ============================================================================
 
+client_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("CLIENT_URLS", "").split(",")
+    if origin.strip()
+]
+client_origin = os.getenv("CLIENT_URL", "").strip().rstrip("/")
+if client_origin:
+    client_origins.append(client_origin)
+client_origins.extend([
+    "http://localhost:3000",
+    "http://127.0.0.1:3000"
+])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=client_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

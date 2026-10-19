@@ -28,9 +28,25 @@ const app = express();
 // MIDDLEWARE SETUP
 // ============================================================================
 
-// CORS configuration supporting credentials and dynamic origins
+const configuredOrigins = [
+  process.env.CLIENT_URL,
+  ...(process.env.CLIENT_URLS || '').split(',')
+].filter(Boolean).map((origin) => origin.trim().replace(/\/+$/, ''));
+
+const allowedOrigins = new Set([
+  ...configuredOrigins,
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+]);
+
+// CORS configuration supports the deployed frontend and local development.
 const corsOptions = {
-  origin: (origin, callback) => callback(null, true),
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true,
@@ -39,18 +55,6 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
-
-// Fallback headers for extra safety
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
-  next();
-});
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -109,6 +113,15 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'AgriSmart Pro API',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 // ============================================================================
 // 404 HANDLER
 // ============================================================================
@@ -135,5 +148,4 @@ app.listen(PORT, () => {
   Logger.info(`API: http://localhost:${PORT}`);
   Logger.info('MongoDB: Disabled (using AI-only architecture)');
 });
-
 

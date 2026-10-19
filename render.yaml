@@ -32,3 +32,5 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.12
+      - key: CLIENT_URL
+        value: https://agrismart-pro.vercel.app
